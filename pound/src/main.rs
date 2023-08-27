@@ -1,6 +1,4 @@
-use std::io;
-use std::io::Read;
-
+use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use crossterm::terminal;
 
 struct CleanUp;
@@ -14,17 +12,19 @@ impl Drop for CleanUp {
 fn main() {
     let _clean_up = CleanUp;
     terminal::enable_raw_mode().expect("could not turn on Raw mode");
-    let mut buf = [0; 1];
-    //按q退出，b'q'表示q是一个字节
-    while io::stdin().read(&mut buf).expect("Failed to read line") == 1 && buf != [b'q'] {
-        let character = buf[0] as char;
-        //判断是否是控制字符，因为控制字符在ASCII码中无法打印，
-        //ASCII码0-31和127为为控制字符
-        //ASCII码32-126为可打印字符
-        if character.is_control() {
-            println!("{}\r", character as u8)
-        } else {
-            println!("{}\r", character)
-        }
+
+    loop {
+        if let Event::Key(event) = event::read().expect("failed to read line") {
+            match event {
+                KeyEvent {
+                    code: KeyCode::Char('q'),
+                    modifiers: event::KeyModifiers::NONE,
+                    kind: _,
+                    state: _,
+                } => break,
+                _ => {}
+            }
+            println!("{:?}\r", event);
+        };
     }
 }
