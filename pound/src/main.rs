@@ -61,11 +61,16 @@ impl Editor {
     }
 }
 
-struct Output;
+struct Output {
+    win_size: (usize, usize),
+}
 
 impl Output {
     fn new() -> Self {
-        Self
+        let win_size = terminal::size()
+            .map(|(x, y)| (x as usize, y as usize))
+            .unwrap();
+        Self { win_size }
     }
 
     fn clear_screen() -> std::io::Result<()> {
@@ -80,7 +85,8 @@ impl Output {
     }
 
     fn draw_rows(&self) {
-        for _ in 0..24 {
+        let screen_rows = self.win_size.1;
+        for _ in 0..screen_rows {
             println!("~\r");
         }
     }
