@@ -1,6 +1,6 @@
-use crossterm::event::{self, Event, KeyCode, KeyEvent};
-use crossterm::terminal;
-
+use crossterm::event::{Event, KeyCode, KeyEvent};
+use crossterm::{event, execute, terminal};
+use std::io::stdout;
 use std::time::Duration;
 
 struct CleanUp;
@@ -18,7 +18,7 @@ impl Reader {
         loop {
             if event::poll(Duration::from_millis(500))? {
                 if let Event::Key(event) = event::read()? {
-                    println!("{:?}\r", event);
+                    //println!("{:?}\r", event);
                     return Ok(event);
                 }
             } else {
@@ -30,11 +30,15 @@ impl Reader {
 
 struct Editor {
     reader: Reader,
+    output: Output,
 }
 
 impl Editor {
     fn new() -> Self {
-        Self { reader: Reader }
+        Self {
+            reader: Reader,
+            output: Output::new(),
+        }
     }
 
     fn process_keypress(&self) -> std::io::Result<bool> {
@@ -51,7 +55,24 @@ impl Editor {
     }
 
     fn run(&self) -> std::io::Result<bool> {
+        self.output.refresh_screen()?;
         self.process_keypress()
+    }
+}
+
+struct Output;
+
+impl Output {
+    fn new() -> Self {
+        Self
+    }
+
+    fn clear_screen() -> std::io::Result<()> {
+        execute!(stdout(), terminal::Clear(terminal::ClearType::All))
+    }
+
+    fn refresh_screen(&self) -> std::io::Result<()> {
+        Self::clear_screen()
     }
 }
 
