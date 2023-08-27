@@ -74,7 +74,15 @@ impl Output {
     }
 
     fn refresh_screen(&self) -> std::io::Result<()> {
-        Self::clear_screen()
+        Self::clear_screen()?;
+        self.draw_rows();
+        execute!(stdout(), cursor::MoveTo(0, 0))
+    }
+
+    fn draw_rows(&self) {
+        for _ in 0..24 {
+            println!("~\r");
+        }
     }
 }
 
