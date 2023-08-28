@@ -1,6 +1,6 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use crossterm::{cursor, event, execute, terminal};
-use std::io::stdout;
+use std::io::{self, stdout, Write};
 use std::time::Duration;
 
 struct CleanUp;
@@ -86,9 +86,52 @@ impl Output {
 
     fn draw_rows(&self) {
         let screen_rows = self.win_size.1;
-        for _ in 0..screen_rows {
-            println!("~\r");
+        for i in 0..screen_rows {
+            print!("~");
+            if i < screen_rows - 1 {
+                println!("\r")
+            }
+            stdout().flush();
         }
+    }
+}
+
+struct EditorContents {
+    content: String,
+}
+
+impl EditorContents {
+    fn new() -> Self {
+        Self {
+            content: String::new(),
+        }
+    }
+
+    fn push(&mut self, ch: char) {
+        self.content.push(ch)
+    }
+
+    fn push_str(&mut self, string: &str) {
+        self.content.push_str(string)
+    }
+}
+
+impl std::io::Write for EditorContents {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        match std::str::from_utf8(buf) {
+            Ok(s) => {
+                self.content.push_str(s);
+                Ok(s.len())
+            }
+            Err(_) => Err(io::ErrorKind::WriteZero.into()),
+        }
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        let out = write!(stdout(), "{}", self.content);
+        stdout().flush()?;
+        self.content.clear();
+        out
     }
 }
 
