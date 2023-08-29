@@ -84,15 +84,10 @@ impl Output {
     }
 
     fn refresh_screen(&mut self) -> std::io::Result<()> {
-        Self::clear_screen()?;
-        queue!(
-            self.editor_contents,
-            cursor::Hide,
-            terminal::Clear(ClearType::All),
-            cursor::MoveTo(0, 0)
-        )?;
+        //Self::clear_screen()?;
+        queue!(self.editor_contents, cursor::Hide, cursor::MoveTo(0, 0))?;
         self.draw_rows();
-        queue!(self.editor_contents, cursor::MoveTo(0, 0),)?;
+        queue!(self.editor_contents, cursor::MoveTo(0, 0), cursor::Show)?;
         self.editor_contents.flush()
     }
 
@@ -100,6 +95,11 @@ impl Output {
         let screen_rows = self.win_size.1;
         for i in 0..screen_rows {
             self.editor_contents.push('~');
+            queue!(
+                self.editor_contents,
+                terminal::Clear(ClearType::UntilNewLine)
+            )
+            .unwrap();
             if i < screen_rows - 1 {
                 self.editor_contents.push_str("\r\n");
             }
