@@ -1,5 +1,6 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use crossterm::{cursor, event, execute, terminal};
+use crossterm::terminal::ClearType;
+use crossterm::{cursor, event, execute, queue, terminal};
 use std::io::{self, stdout, Write};
 use std::time::Duration;
 
@@ -55,7 +56,7 @@ impl Editor {
         Ok(true)
     }
 
-    fn run(&self) -> std::io::Result<bool> {
+    fn run(&mut self) -> std::io::Result<bool> {
         self.output.refresh_screen()?;
         self.process_keypress()
     }
@@ -63,6 +64,7 @@ impl Editor {
 
 struct Output {
     win_size: (usize, usize),
+    editor_contents: EditorContents,
 }
 
 impl Output {
@@ -70,7 +72,10 @@ impl Output {
         let win_size = terminal::size()
             .map(|(x, y)| (x as usize, y as usize))
             .unwrap();
-        Self { win_size }
+        Self {
+            win_size,
+            editor_contents: EditorContents::new(),
+        }
     }
 
     fn clear_screen() -> std::io::Result<()> {
@@ -78,20 +83,26 @@ impl Output {
         execute!(stdout(), cursor::MoveTo(0, 0))
     }
 
-    fn refresh_screen(&self) -> std::io::Result<()> {
+    fn refresh_screen(&mut self) -> std::io::Result<()> {
         Self::clear_screen()?;
+        queue!(
+            self.editor_contents,
+            cursor::Hide,
+            terminal::Clear(ClearType::All),
+            cursor::MoveTo(0, 0)
+        )?;
         self.draw_rows();
-        execute!(stdout(), cursor::MoveTo(0, 0))
+        queue!(self.editor_contents, cursor::MoveTo(0, 0),)?;
+        self.editor_contents.flush()
     }
 
-    fn draw_rows(&self) {
+    fn draw_rows(&mut self) {
         let screen_rows = self.win_size.1;
         for i in 0..screen_rows {
-            print!("~");
+            self.editor_contents.push('~');
             if i < screen_rows - 1 {
-                println!("\r")
+                self.editor_contents.push_str("\r\n");
             }
-            stdout().flush();
         }
     }
 }
@@ -139,7 +150,7 @@ fn main() -> std::io::Result<()> {
     let _clean_up = CleanUp;
     terminal::enable_raw_mode()?;
     /* modify */
-    let editor = Editor::new();
+    let mut editor = Editor::new();
     while editor.run()? {}
     /* end */
     Ok(())
