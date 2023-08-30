@@ -161,6 +161,20 @@ impl std::io::Write for EditorContents {
     }
 }
 
+struct CursorController {
+    cursor_x: usize,
+    cursor_y: usize,
+}
+
+impl CursorController {
+    fn new() -> CursorController {
+        Self {
+            cursor_x: 0,
+            cursor_y: 0,
+        }
+    }
+}
+
 fn main() -> std::io::Result<()> {
     let _clean_up = CleanUp;
     terminal::enable_raw_mode()?;
