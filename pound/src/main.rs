@@ -24,7 +24,7 @@ impl Reader {
                     return Ok(event);
                 }
             } else {
-                println!("No input yet\r");
+                //println!("No input yet\r");
             }
         }
     }
@@ -43,7 +43,7 @@ impl Editor {
         }
     }
 
-    fn process_keypress(&self) -> std::io::Result<bool> {
+    fn process_keypress(&mut self) -> std::io::Result<bool> {
         match self.reader.read_key()? {
             KeyEvent {
                 code: KeyCode::Char('c'),
@@ -51,6 +51,12 @@ impl Editor {
                 kind: _,
                 state: _,
             } => return Ok(false),
+            KeyEvent {
+                code: KeyCode::Char(val @ ('w' | 'a' | 's' | 'd')),
+                modifiers: event::KeyModifiers::NONE,
+                kind: _,
+                state: _,
+            } => self.output.move_cursor(val),
             _ => {}
         }
         Ok(true)
@@ -65,6 +71,7 @@ impl Editor {
 struct Output {
     win_size: (usize, usize),
     editor_contents: EditorContents,
+    cursor_controller: CursorController, //添加光标属性
 }
 
 impl Output {
@@ -75,6 +82,7 @@ impl Output {
         Self {
             win_size,
             editor_contents: EditorContents::new(),
+            cursor_controller: CursorController::new(), //初始化光标控制器
         }
     }
 
@@ -87,7 +95,13 @@ impl Output {
         //Self::clear_screen()?;
         queue!(self.editor_contents, cursor::Hide, cursor::MoveTo(0, 0))?;
         self.draw_rows();
-        queue!(self.editor_contents, cursor::MoveTo(0, 0), cursor::Show)?;
+        let cursor_x: usize = self.cursor_controller.cursor_x;
+        let cursor_y: usize = self.cursor_controller.cursor_y;
+        queue!(
+            self.editor_contents,
+            cursor::MoveTo(cursor_x as u16, cursor_y as u16),
+            cursor::Show
+        )?;
         self.editor_contents.flush()
     }
 
@@ -119,6 +133,10 @@ impl Output {
                 self.editor_contents.push_str("\r\n");
             }
         }
+    }
+
+    fn move_cursor(&mut self, direction: char) {
+        self.cursor_controller.move_cursor(direction);
     }
 }
 
@@ -171,6 +189,24 @@ impl CursorController {
         Self {
             cursor_x: 0,
             cursor_y: 0,
+        }
+    }
+
+    fn move_cursor(&mut self, director: char) {
+        match director {
+            'w' => {
+                self.cursor_y -= 1;
+            }
+            'a' => {
+                self.cursor_x -= 1;
+            }
+            's' => {
+                self.cursor_y += 1;
+            }
+            'd' => {
+                self.cursor_x += 1;
+            }
+            _ => unimplemented!(),
         }
     }
 }
