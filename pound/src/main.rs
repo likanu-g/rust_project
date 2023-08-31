@@ -52,11 +52,11 @@ impl Editor {
                 state: _,
             } => return Ok(false),
             KeyEvent {
-                code: KeyCode::Char(val @ ('w' | 'a' | 's' | 'd')),
+                code: direction @ (KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right),
                 modifiers: event::KeyModifiers::NONE,
                 kind: _,
                 state: _,
-            } => self.output.move_cursor(val),
+            } => self.output.move_cursor(direction),
             _ => {}
         }
         Ok(true)
@@ -135,7 +135,7 @@ impl Output {
         }
     }
 
-    fn move_cursor(&mut self, direction: char) {
+    fn move_cursor(&mut self, direction: KeyCode) {
         self.cursor_controller.move_cursor(direction);
     }
 }
@@ -192,18 +192,18 @@ impl CursorController {
         }
     }
 
-    fn move_cursor(&mut self, director: char) {
+    fn move_cursor(&mut self, director: KeyCode) {
         match director {
-            'w' => {
+            KeyCode::Up => {
                 self.cursor_y -= 1;
             }
-            'a' => {
+            KeyCode::Left => {
                 self.cursor_x -= 1;
             }
-            's' => {
+            KeyCode::Down => {
                 self.cursor_y += 1;
             }
-            'd' => {
+            KeyCode::Right => {
                 self.cursor_x += 1;
             }
             _ => unimplemented!(),
