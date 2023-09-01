@@ -52,11 +52,29 @@ impl Editor {
                 state: _,
             } => return Ok(false),
             KeyEvent {
-                code: direction @ (KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right),
+                code:
+                    direction @ (KeyCode::Up
+                    | KeyCode::Down
+                    | KeyCode::Left
+                    | KeyCode::Right
+                    | KeyCode::Home
+                    | KeyCode::End),
                 modifiers: event::KeyModifiers::NONE,
                 kind: _,
                 state: _,
             } => self.output.move_cursor(direction),
+            KeyEvent {
+                code: val @ (KeyCode::PageUp | KeyCode::PageDown),
+                modifiers: event::KeyModifiers::NONE,
+                kind: _,
+                state: _,
+            } => (0..self.output.win_size.1).for_each(|_| {
+                self.output.move_cursor(if matches!(val, KeyCode::PageUp) {
+                    KeyCode::Up
+                } else {
+                    KeyCode::Down
+                });
+            }),
             _ => {}
         }
         Ok(true)
@@ -216,6 +234,8 @@ impl CursorController {
                     self.cursor_x += 1;
                 }
             }
+            KeyCode::End => self.cursor_x = self.screen_columns - 1,
+            KeyCode::Home => self.cursor_x = 0,
             _ => unimplemented!(),
         }
     }
