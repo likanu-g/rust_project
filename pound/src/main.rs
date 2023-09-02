@@ -2,7 +2,10 @@ use crossterm::event::{Event, KeyCode, KeyEvent};
 use crossterm::terminal::ClearType;
 use crossterm::{cursor, event, execute, queue, terminal};
 use std::io::{self, stdout, Write};
+use std::ops::Index;
+use std::path::Path;
 use std::time::Duration;
+use std::{cmp, env, fs};
 
 struct CleanUp;
 
@@ -90,6 +93,7 @@ struct Output {
     win_size: (usize, usize),
     editor_contents: EditorContents,
     cursor_controller: CursorController, //添加光标属性
+    editor_rows: EditorRows,
 }
 
 impl Output {
@@ -101,6 +105,7 @@ impl Output {
             win_size,
             editor_contents: EditorContents::new(),
             cursor_controller: CursorController::new(win_size), //初始化光标控制器
+            editor_rows: EditorRows::new(),
         }
     }
 
@@ -127,20 +132,34 @@ impl Output {
         let screen_rows = self.win_size.1;
         let screen_columns = self.win_size.0;
         for i in 0..screen_rows {
-            if i == screen_rows / 3 {
-                let mut welcomme = format!("Pound Editor --- Version {}", "VERSION");
-                if welcomme.len() > screen_columns {
-                    welcomme.truncate(screen_columns)
-                }
-                let mut padding = (screen_columns - welcomme.len()) / 2;
-                if padding != 0 {
+            if i >= self.editor_rows.number_of_rows() {
+                if i == screen_rows / 3 {
+                    let mut welcomme = format!("Pound Editor --- Version {}", "VERSION");
+                    if welcomme.len() > screen_columns {
+                        welcomme.truncate(screen_columns)
+                    }
+                    let mut padding = (screen_columns - welcomme.len()) / 2;
+                    if padding != 0 {
+                        self.editor_contents.push('~');
+                        padding -= 1
+                    }
+                    (0..padding).for_each(|_| self.editor_contents.push(' '));
+                    self.editor_contents.push_str(&welcomme);
+                } else {
                     self.editor_contents.push('~');
-                    padding -= 1
                 }
-                (0..padding).for_each(|_| self.editor_contents.push(' '));
-                self.editor_contents.push_str(&welcomme);
+                queue!(
+                    self.editor_contents,
+                    terminal::Clear(ClearType::UntilNewLine)
+                )
+                .unwrap();
+                if i < screen_rows - 1 {
+                    self.editor_contents.push_str("\r\n");
+                }
             } else {
-                self.editor_contents.push('~');
+                let len = cmp::min(self.editor_rows.get_row(i).len(), screen_columns);
+                self.editor_contents
+                    .push_str(&self.editor_rows.get_row(i)[..len])
             }
             queue!(
                 self.editor_contents,
@@ -238,6 +257,38 @@ impl CursorController {
             KeyCode::Home => self.cursor_x = 0,
             _ => unimplemented!(),
         }
+    }
+}
+
+struct EditorRows {
+    row_contents: Vec<Box<str>>,
+}
+
+impl EditorRows {
+    fn new() -> Self {
+        let mut arg = env::args();
+
+        match arg.nth(1) {
+            None => Self {
+                row_contents: Vec::new(),
+            },
+            Some(file) => Self::from_file(file.as_ref()),
+        }
+    }
+
+    fn from_file(file: &Path) -> Self {
+        let file_contents = fs::read_to_string(file).expect("Unable to read file");
+        Self {
+            row_contents: file_contents.lines().map(|it| it.into()).collect(),
+        }
+    }
+
+    fn number_of_rows(&self) -> usize {
+        self.row_contents.len()
+    }
+
+    fn get_row(&self, at: usize) -> &str {
+        &self.row_contents[at]
     }
 }
 
