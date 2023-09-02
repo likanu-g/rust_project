@@ -115,10 +115,11 @@ impl Output {
 
     fn refresh_screen(&mut self) -> std::io::Result<()> {
         //Self::clear_screen()?;
+        self.cursor_controller.scroll();
         queue!(self.editor_contents, cursor::Hide, cursor::MoveTo(0, 0))?;
         self.draw_rows();
         let cursor_x: usize = self.cursor_controller.cursor_x;
-        let cursor_y: usize = self.cursor_controller.cursor_y;
+        let cursor_y: usize = self.cursor_controller.cursor_y - self.cursor_controller.row_offset;
         queue!(
             self.editor_contents,
             cursor::MoveTo(cursor_x as u16, cursor_y as u16),
@@ -131,7 +132,8 @@ impl Output {
         let screen_rows = self.win_size.1;
         let screen_columns = self.win_size.0;
         for i in 0..screen_rows {
-            if i >= self.editor_rows.number_of_rows() {
+            let file_row = i + self.cursor_controller.row_offset;
+            if file_row >= self.editor_rows.number_of_rows() {
                 //添加文件行数为0的情况判断
                 if self.editor_rows.number_of_rows() == 0 && i == screen_rows / 3 {
                     let mut welcomme = format!("Pound Editor --- Version {}", "VERSION");
@@ -149,9 +151,11 @@ impl Output {
                     self.editor_contents.push('~');
                 }
             } else {
-                let len = cmp::min(self.editor_rows.get_row(i).len(), screen_columns);
-                self.editor_contents
-                    .push_str(&self.editor_rows.get_row(i)[..len])
+                let row = self.editor_rows.get_row(file_row);
+                let column_offset = self.cursor_controller.cloumn_offset;
+                let len = cmp::min(row.len().saturating_sub(column_offset), screen_columns);
+                let start = if len == 0 { 0 } else { column_offset };
+                self.editor_contents.push_str(&row[start..start + len])
             }
             queue!(
                 self.editor_contents,
@@ -165,7 +169,8 @@ impl Output {
     }
 
     fn move_cursor(&mut self, direction: KeyCode) {
-        self.cursor_controller.move_cursor(direction);
+        self.cursor_controller
+            .move_cursor(direction, self.editor_rows.number_of_rows());
     }
 }
 
@@ -213,6 +218,8 @@ struct CursorController {
     cursor_y: usize,
     screen_columns: usize,
     screen_rows: usize,
+    row_offset: usize,
+    cloumn_offset: usize,
 }
 
 impl CursorController {
@@ -222,10 +229,12 @@ impl CursorController {
             cursor_y: 0,
             screen_columns: win_size.0,
             screen_rows: win_size.1,
+            row_offset: 0,
+            cloumn_offset: 0,
         }
     }
 
-    fn move_cursor(&mut self, director: KeyCode) {
+    fn move_cursor(&mut self, director: KeyCode, number_of_rows: usize) {
         match director {
             KeyCode::Up => {
                 self.cursor_y = self.cursor_y.saturating_sub(1);
@@ -236,7 +245,7 @@ impl CursorController {
                 }
             }
             KeyCode::Down => {
-                if self.cursor_y != self.screen_rows - 1 {
+                if self.cursor_y < number_of_rows {
                     self.cursor_y += 1;
                 }
             }
@@ -248,6 +257,17 @@ impl CursorController {
             KeyCode::End => self.cursor_x = self.screen_columns - 1,
             KeyCode::Home => self.cursor_x = 0,
             _ => unimplemented!(),
+        }
+    }
+
+    fn scroll(&mut self) {
+        self.row_offset = cmp::min(self.row_offset, self.cursor_y);
+        if self.cursor_y >= self.row_offset + self.screen_rows {
+            self.row_offset = self.cursor_y - self.screen_rows + 1;
+        }
+        self.cloumn_offset = cmp::min(self.row_offset, self.cursor_x);
+        if self.cursor_x >= self.cloumn_offset + self.screen_columns {
+            self.cloumn_offset = self.cursor_x - self.screen_columns + 1;
         }
     }
 }
