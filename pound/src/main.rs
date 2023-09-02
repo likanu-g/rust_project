@@ -2,7 +2,6 @@ use crossterm::event::{Event, KeyCode, KeyEvent};
 use crossterm::terminal::ClearType;
 use crossterm::{cursor, event, execute, queue, terminal};
 use std::io::{self, stdout, Write};
-use std::ops::Index;
 use std::path::Path;
 use std::time::Duration;
 use std::{cmp, env, fs};
@@ -133,7 +132,8 @@ impl Output {
         let screen_columns = self.win_size.0;
         for i in 0..screen_rows {
             if i >= self.editor_rows.number_of_rows() {
-                if i == screen_rows / 3 {
+                //添加文件行数为0的情况判断
+                if self.editor_rows.number_of_rows() == 0 && i == screen_rows / 3 {
                     let mut welcomme = format!("Pound Editor --- Version {}", "VERSION");
                     if welcomme.len() > screen_columns {
                         welcomme.truncate(screen_columns)
@@ -147,14 +147,6 @@ impl Output {
                     self.editor_contents.push_str(&welcomme);
                 } else {
                     self.editor_contents.push('~');
-                }
-                queue!(
-                    self.editor_contents,
-                    terminal::Clear(ClearType::UntilNewLine)
-                )
-                .unwrap();
-                if i < screen_rows - 1 {
-                    self.editor_contents.push_str("\r\n");
                 }
             } else {
                 let len = cmp::min(self.editor_rows.get_row(i).len(), screen_columns);
